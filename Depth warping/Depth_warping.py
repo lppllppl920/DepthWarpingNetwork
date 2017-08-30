@@ -39,7 +39,7 @@ P[1,1] = fy_rgb
 P[1,2] = cy_rgb
 P[2,2] = 1.0
 
-index = 1
+index = 0
 
 translation_vector = np.reshape(translation_data[index], (3, 1))
 
@@ -100,8 +100,9 @@ for h in range(z_2_warped.shape[0]):
         
         z_2_warped[h, w] = wa * z_1_calculate[y0, x0] + wb * z_1_calculate[y1, x0] + \
             wc * z_1_calculate[y0, x1] + wd * z_1_calculate[y1, x1]
-visualize_depth_map(z_1_calculate, "calculate depth 1") 
-visualize_depth_map(z_2_calculate, "calculate depth 2")
+#visualize_depth_map(z_1_calculate, "calculate depth 1") 
+#visualize_depth_map(z_2_calculate, "calculate depth 2")
+visualize_depth_map(depth_data[index], "original depth")
 visualize_depth_map(z_2_warped, "warped depth")
 visualize_depth_map(synthesis_depth_data[index], "synthesis depth")
 visualize_depth_map(np.abs(synthesis_depth_data[index] - z_2_warped), "subtract depth")        

@@ -6,19 +6,26 @@ from theano.tensor.nlinalg import matrix_inverse
 
 class DepthWarpingLayer(Layer):
     
-    def __init__(self, intrinsic_matrix, **kwargs):
+    def __init__(self, intrinsic_matrix, mask, **kwargs):
         super(DepthWarpingLayer, self).__init__(**kwargs)
-        self.intrinsic_matrix = theano.shared(intrinsic_matrix)
-
+        self.intrinsic_matrix = intrinsic_matrix
+        self.mask = mask
     def compute_output_shape(self, input_shapes):
         return input_shapes[0]
 
-    def call(self, x, mask=None):
+#    def get_config(self):
+#        config = {'intrinsic_matrix': self.intrinsic_matrix, 'mask': self.mask}
+#        base_config = super(DepthWarpingLayer, self).get_config()
+#        return dict(list(base_config.items()) + list(config.items()))
+        
+    def call(self, x):
         depth_map_1, depth_map_2, translation_vector, rotation_matrix = x
-        warped_depth_map = _depth_warping(self.intrinsic_matrix, depth_map_1, depth_map_2, translation_vector, rotation_matrix)
+        mask = theano.shared(self.mask)
+        intrinsic_matrix = theano.shared(self.intrinsic_matrix)
+        warped_depth_map = _depth_warping(mask, intrinsic_matrix, depth_map_1, depth_map_2, translation_vector, rotation_matrix)
         return warped_depth_map
 
-def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vectors, rotation_matrices):
+def _depth_warping(mask, intrinsic_matrix, depth_map_1, depth_map_2, translation_vectors, rotation_matrices):
         
     ## Generate same meshgrid for each depth map to calculate value    
     num_batch, height, width, channels = depth_map_1.shape
@@ -69,23 +76,34 @@ def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vecto
     depth_map_2_calculate, updates = theano.scan(fn=lambda W, M, u, v, z_1, : W[2, 0] + z_1 * (M[2, 0] * u + M[2, 1] * v + M[2, 2]),
                       outputs_info=None,
                       sequences=[W, M, x_grid, y_grid, depth_map_1]) 
-       
-    u_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[0, 0] * u + M[0, 1] * v + M[0, 2]) + W[0, 0]) / z_2_calculate,
-                      outputs_info=None,
-                      sequences=[W, M, x_grid, y_grid, depth_map_1, depth_map_2_calculate])
     
-    v_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[1, 0] * u + M[1, 1] * v + M[1, 2]) + W[1, 0]) / z_2_calculate,
+    masked_depth_map_2_calculate, updates = theano.scan(fn=lambda x, y: K.switch(y < 1.0, 0, x),
+          outputs_info=None,
+          sequences=[depth_map_2_calculate],
+          non_sequences=[mask])
+        
+    u_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[0, 0] * u + M[0, 1] * v + M[0, 2]) + W[0, 0]) / (z_2_calculate + 1e-15),
                       outputs_info=None,
-                      sequences=[W, M, x_grid, y_grid, depth_map_1, depth_map_2_calculate])
+                      sequences=[W, M, x_grid, y_grid, depth_map_1, masked_depth_map_2_calculate])
+    
+    v_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[1, 0] * u + M[1, 1] * v + M[1, 2]) + W[1, 0]) / (z_2_calculate + 1e-15),
+                      outputs_info=None,
+                      sequences=[W, M, x_grid, y_grid, depth_map_1, masked_depth_map_2_calculate])
     
     depth_map_1_calculate, updates = theano.scan(fn=lambda W_2, M_2, u, v, z_2, : W_2[2, 0] + z_2 * (M_2[2, 0] * u + M_2[2, 1] * v + M_2[2, 2]),
                       outputs_info=None,
                       sequences=[W_2, M_2, x_grid, y_grid, depth_map_2])
 
+    
+    masked_depth_map_1_calculate, updates = theano.scan(fn=lambda x, y: K.switch(y < 1.0, 0, x),
+          outputs_info=None,
+          sequences=[depth_map_1_calculate],
+          non_sequences=[mask])
+    
     u_2_flat = u_2.flatten()
     v_2_flat = v_2.flatten()
 
-    depth_map_1_transformed_flat = _interpolate(depth_map_1_calculate, u_2_flat, v_2_flat)
+    depth_map_1_transformed_flat = _interpolate(masked_depth_map_1_calculate, u_2_flat, v_2_flat)
     return K.reshape(depth_map_1_transformed_flat,
                    (num_batch, height, width, channels))
     
