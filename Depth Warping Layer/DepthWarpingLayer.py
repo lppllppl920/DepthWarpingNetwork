@@ -6,10 +6,9 @@ from theano.tensor.nlinalg import matrix_inverse
 
 class DepthWarpingLayer(Layer):
     
-    def __init__(self, intrinsic_matrix, mask, **kwargs):
+    def __init__(self, intrinsic_matrix, **kwargs):
         super(DepthWarpingLayer, self).__init__(**kwargs)
         self.intrinsic_matrix = intrinsic_matrix
-        self.mask = mask
     def compute_output_shape(self, input_shapes):
         return input_shapes[0]
 
@@ -20,22 +19,25 @@ class DepthWarpingLayer(Layer):
         
     def call(self, x):
         depth_map_1, depth_map_2, translation_vector, rotation_matrix = x
-        mask = theano.shared(self.mask)
         intrinsic_matrix = theano.shared(self.intrinsic_matrix)
-        warped_depth_map = _depth_warping(mask, intrinsic_matrix, depth_map_1, depth_map_2, translation_vector, rotation_matrix)
+        warped_depth_map = _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vector, rotation_matrix)
         return warped_depth_map
 
-def _depth_warping(mask, intrinsic_matrix, depth_map_1, depth_map_2, translation_vectors, rotation_matrices):
+def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vectors, rotation_matrices):
         
     ## Generate same meshgrid for each depth map to calculate value    
     num_batch, height, width, channels = depth_map_1.shape
-    
-    x_grid = K.dot(T.ones((height, 1)),
-            T.arange(width, dtype='float32').dimshuffle('x', 0))
-    y_grid = K.dot(T.arange(height, dtype='float32').dimshuffle(0, 'x'),
-            T.ones((1, width)))
-    x_grid = x_grid.reshape((1, height, width, 1))
-    y_grid = y_grid.reshape((1, height, width, 1))
+
+
+    x_grid = K.dot(T.ones((height, 1), dtype='float32'),
+                   K.reshape(K.arange(width, dtype='float32'), (1, -1)))
+
+    y_grid = K.dot(K.reshape(K.arange(height, dtype='float32'), (-1, 1)),
+            T.ones((1, width), dtype='float32'))
+
+    x_grid = K.reshape(x_grid, (1, height, width, 1))
+    y_grid = K.reshape(y_grid, (1, height, width, 1))
+
     x_grid = K.repeat_elements(x_grid, num_batch, axis = 0)
     y_grid = K.repeat_elements(y_grid, num_batch, axis = 0)
     
@@ -77,33 +79,31 @@ def _depth_warping(mask, intrinsic_matrix, depth_map_1, depth_map_2, translation
                       outputs_info=None,
                       sequences=[W, M, x_grid, y_grid, depth_map_1]) 
     
-    masked_depth_map_2_calculate, updates = theano.scan(fn=lambda x, y: K.switch(y < 1.0, 0, x),
-          outputs_info=None,
-          sequences=[depth_map_2_calculate],
-          non_sequences=[mask])
+    # masked_depth_map_2_calculate, updates = theano.scan(fn=lambda x, y: K.switch(y > 1.0e-7, x, 1.0e20),
+    #       outputs_info=None,
+    #       sequences=[depth_map_2_calculate, depth_map_1])
         
-    u_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[0, 0] * u + M[0, 1] * v + M[0, 2]) + W[0, 0]) / (z_2_calculate + 1e-15),
+    u_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[0, 0] * u + M[0, 1] * v + M[0, 2]) + W[0, 0]) / (z_2_calculate + 1.0e-30),
                       outputs_info=None,
-                      sequences=[W, M, x_grid, y_grid, depth_map_1, masked_depth_map_2_calculate])
+                      sequences=[W, M, x_grid, y_grid, depth_map_1, depth_map_2_calculate]) #masked_depth_map_2_calculate
     
-    v_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[1, 0] * u + M[1, 1] * v + M[1, 2]) + W[1, 0]) / (z_2_calculate + 1e-15),
+    v_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[1, 0] * u + M[1, 1] * v + M[1, 2]) + W[1, 0]) / (z_2_calculate + 1.0e-30),
                       outputs_info=None,
-                      sequences=[W, M, x_grid, y_grid, depth_map_1, masked_depth_map_2_calculate])
+                      sequences=[W, M, x_grid, y_grid, depth_map_1, depth_map_2_calculate]) #masked_depth_map_2_calculate
     
     depth_map_1_calculate, updates = theano.scan(fn=lambda W_2, M_2, u, v, z_2, : W_2[2, 0] + z_2 * (M_2[2, 0] * u + M_2[2, 1] * v + M_2[2, 2]),
                       outputs_info=None,
                       sequences=[W_2, M_2, x_grid, y_grid, depth_map_2])
 
     
-    masked_depth_map_1_calculate, updates = theano.scan(fn=lambda x, y: K.switch(y < 1.0, 0, x),
-          outputs_info=None,
-          sequences=[depth_map_1_calculate],
-          non_sequences=[mask])
+    # masked_depth_map_1_calculate, updates = theano.scan(fn=lambda x, y: K.switch(y > 1.0e-7, x, 0),
+    #       outputs_info=None,
+    #       sequences=[depth_map_1_calculate, depth_map_2])
     
     u_2_flat = u_2.flatten()
     v_2_flat = v_2.flatten()
 
-    depth_map_1_transformed_flat = _interpolate(masked_depth_map_1_calculate, u_2_flat, v_2_flat)
+    depth_map_1_transformed_flat = _interpolate(depth_map_1_calculate, u_2_flat, v_2_flat)  #masked_depth_map_1_calculate
     return K.reshape(depth_map_1_transformed_flat,
                    (num_batch, height, width, channels))
     

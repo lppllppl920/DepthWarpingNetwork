@@ -89,8 +89,8 @@ P[1,2] = cy_rgb
 P[2,2] = 1.0
 
 img_mask = np.ones((640, 480, 1), dtype = 'float32')
-warped_depth_map_1 = DepthWarpingLayer(P, img_mask)([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix])
-warped_depth_map_2 = DepthWarpingLayer(P, img_mask)([input_depth_map_2, input_depth_map_1, \
+warped_depth_map_1 = DepthWarpingLayer(P)([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix])
+warped_depth_map_2 = DepthWarpingLayer(P)([input_depth_map_2, input_depth_map_1, \
     input_translation_vector_inverse, input_rotation_matrix_inverse])
 #model = Model([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix], warped_depth_map)
 #model.summary()
@@ -111,6 +111,8 @@ model.compile(loss='mean_squared_error', optimizer=sgd)
 
 masked_depth_data = model.predict([synthesis_depth_data, depth_data, translation_data, rotation_data, translation_data_I, rotation_data_I], batch_size=5)
 
-i = 1
+i = 0
 visualize_depth_map(masked_depth_data[0][i], 'Depth warping layer result 1')
 visualize_depth_map(masked_depth_data[1][i], 'Depth warping layer result 2')
+visualize_depth_map(synthesis_depth_data[i], 'synthesis depth data')
+visualize_depth_map(depth_data[i], 'original depth data')
