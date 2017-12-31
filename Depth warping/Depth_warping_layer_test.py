@@ -90,7 +90,7 @@ P[2,2] = 1.0
 
 img_mask = np.ones((640, 480, 1), dtype = 'float32')
 warped_depth_map_1 = DepthWarpingLayer(P)([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix])
-warped_depth_map_2 = DepthWarpingLayer(P)([input_depth_map_2, input_depth_map_1, \
+warped_depth_map_2 = DepthWarpingLayer(P)([input_depth_map_2, input_depth_map_1,
     input_translation_vector_inverse, input_rotation_matrix_inverse])
 #model = Model([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix], warped_depth_map)
 #model.summary()
@@ -102,7 +102,7 @@ warped_depth_map_2 = DepthWarpingLayer(P)([input_depth_map_2, input_depth_map_1,
 #visualize_depth_map(warped_depth_data[0], 'Depth warping layer result')
 
 #masked_input_depth_map_2 = Lambda(mask_invalid_element, output_shape=mask_invalid_element_output_shape)([warped_depth_map_1, input_depth_map_2])
-model = Model([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix, \
+model = Model([input_depth_map_1, input_depth_map_2, input_translation_vector, input_rotation_matrix,
                input_translation_vector_inverse, input_rotation_matrix_inverse], [warped_depth_map_1, warped_depth_map_2])
 model.summary()
 

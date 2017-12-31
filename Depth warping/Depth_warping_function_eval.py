@@ -195,21 +195,21 @@ depth_map_1_transformed = K.reshape(depth_map_1_transformed_flat,
 #print(x_grid.shape.eval({depth_map_1: depth_data}))
 #print(W.shape.eval({rotation_matrices: rotation_data, intrinsic_matrix: P, translation_vectors: translation_data}))
 
-u_2_eval = u_2.eval({rotation_matrices: rotation_data, intrinsic_matrix: P, \
+u_2_eval = u_2.eval({rotation_matrices: rotation_data, intrinsic_matrix: P,
                           translation_vectors: translation_data, depth_map_1: synthesis_depth_data})
 #print(u_2_eval)
 
 W_eval = W.eval({rotation_matrices: rotation_data, intrinsic_matrix: P, translation_vectors: translation_data})
 M_eval = M.eval({rotation_matrices: rotation_data, intrinsic_matrix: P})
 
-depth_img_1_calculate_eval = depth_map_1_calculate.eval({rotation_matrices: rotation_data, intrinsic_matrix: P, \
+depth_img_1_calculate_eval = depth_map_1_calculate.eval({rotation_matrices: rotation_data, intrinsic_matrix: P,
                           translation_vectors: translation_data, depth_map_1: synthesis_depth_data, depth_map_2: depth_data})
 visualize_depth_map(depth_img_1_calculate_eval[1], '1')
 
-depth_img_2_calculate_eval = depth_map_2_calculate.eval({rotation_matrices: rotation_data, intrinsic_matrix: P, \
+depth_img_2_calculate_eval = depth_map_2_calculate.eval({rotation_matrices: rotation_data, intrinsic_matrix: P,
                           translation_vectors: translation_data, depth_map_1: synthesis_depth_data})
 visualize_depth_map(depth_img_2_calculate_eval[1], '2')
 
-depth_map_1_transformed_eval = depth_map_1_transformed.eval({rotation_matrices: rotation_data, intrinsic_matrix: P, \
+depth_map_1_transformed_eval = depth_map_1_transformed.eval({rotation_matrices: rotation_data, intrinsic_matrix: P,
                           translation_vectors: translation_data, depth_map_1: synthesis_depth_data, depth_map_2: depth_data})
 visualize_depth_map(depth_map_1_transformed_eval[1], '1 transform')

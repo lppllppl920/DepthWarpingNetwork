@@ -21,6 +21,7 @@ class DepthWarpingLayer(Layer):
         depth_map_1, depth_map_2, translation_vector, rotation_matrix = x
         intrinsic_matrix = theano.shared(self.intrinsic_matrix)
         warped_depth_map = _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vector, rotation_matrix)
+
         return warped_depth_map
 
 def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vectors, rotation_matrices):
@@ -83,11 +84,11 @@ def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vecto
     #       outputs_info=None,
     #       sequences=[depth_map_2_calculate, depth_map_1])
         
-    u_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[0, 0] * u + M[0, 1] * v + M[0, 2]) + W[0, 0]) / (z_2_calculate + 1.0e-30),
+    u_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[0, 0] * u + M[0, 1] * v + M[0, 2]) + W[0, 0]) / z_2_calculate,
                       outputs_info=None,
                       sequences=[W, M, x_grid, y_grid, depth_map_1, depth_map_2_calculate]) #masked_depth_map_2_calculate
     
-    v_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[1, 0] * u + M[1, 1] * v + M[1, 2]) + W[1, 0]) / (z_2_calculate + 1.0e-30),
+    v_2, updates = theano.scan(fn=lambda W, M, u, v, z_1, z_2_calculate, : (z_1 * (M[1, 0] * u + M[1, 1] * v + M[1, 2]) + W[1, 0]) / z_2_calculate,
                       outputs_info=None,
                       sequences=[W, M, x_grid, y_grid, depth_map_1, depth_map_2_calculate]) #masked_depth_map_2_calculate
     
@@ -104,8 +105,30 @@ def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vecto
     v_2_flat = v_2.flatten()
 
     depth_map_1_transformed_flat = _interpolate(depth_map_1_calculate, u_2_flat, v_2_flat)  #masked_depth_map_1_calculate
+
+
     return K.reshape(depth_map_1_transformed_flat,
                    (num_batch, height, width, channels))
+
+
+
+
+
+    ## Experiments
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
     
 def _repeat(x, n_repeats):

@@ -234,9 +234,9 @@ estimated_depth_map_2 = convt3_static(x)
 ## TODO: Found the problem: minus synchronized depth is not processed properly
 masked_output_depth_img_1 = multiply([estimated_depth_map_1, input_mask_img_1])
 masked_output_depth_img_2 = multiply([estimated_depth_map_2, input_mask_img_2])
-sparse_masked_mean_squared_difference_1 = Lambda(sparse_mean_squared_difference, \
+sparse_masked_mean_squared_difference_1 = Lambda(sparse_mean_squared_difference,
                                                  output_shape=sparse_mean_squared_difference_output_shape, arguments={'weight': 0.5})([input_sparse_masked_depth_img_1, masked_output_depth_img_1])
-sparse_masked_mean_squared_difference_2 = Lambda(sparse_mean_squared_difference, \
+sparse_masked_mean_squared_difference_2 = Lambda(sparse_mean_squared_difference,
                                                  output_shape=sparse_mean_squared_difference_output_shape, arguments={'weight': 0.5})([input_sparse_masked_depth_img_2, masked_output_depth_img_2])
 
 specularity_mask_1 = SpecularityMaskingLayer(threshold = 4.0)(input_img_1)
