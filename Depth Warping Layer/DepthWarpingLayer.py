@@ -47,6 +47,7 @@ def _depth_warping(intrinsic_matrix, depth_map_1, depth_map_2, translation_vecto
     intrinsic_matrix_inverse = matrix_inverse(intrinsic_matrix)
 
 
+## TODO: These part theano scan thing should be reimplemented to be more efficient
     ## Calculate parameters for warping
     temp_mat, updates = theano.scan(fn=lambda rotation_I, intrinsic_mat: T.dot(intrinsic_mat, rotation_I),
                               outputs_info=None,
